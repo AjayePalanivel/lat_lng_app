@@ -5,13 +5,13 @@ class LandingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
     return Scaffold(
       body: Center(
         child: SizedBox(
-          height: MediaQuery.of(context).size.width,
-          width: MediaQuery.of(context).size.width,
-          child: Image.asset('asserts/Location_icon_from_Noun_Project.png',
-              fit: BoxFit.cover),
+          height: size.width,
+          width: size.width - 100,
+          child: Image.asset('asserts/undraw_my_location_re_r52x.png'),
         ),
       ),
     );

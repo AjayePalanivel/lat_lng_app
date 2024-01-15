@@ -1,30 +1,22 @@
 import 'dart:async';
 
-import 'package:awesome_notifications/awesome_notifications.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:lat_lng_app/screens/home_page.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:lat_lng_app/repository/background_service.dart';
+import 'package:lat_lng_app/screens/home_screen.dart';
 import 'package:lat_lng_app/screens/landing_screen.dart';
-import 'package:lat_lng_app/widgets/app_notification.dart';
 
-void main() async {
-  await AwesomeNotifications().initialize(null, [
-    NotificationChannel(
-      channelGroupKey: 'lat_lng_channel_group',
-      channelKey: 'LatLngApp Channel',
-      channelName: 'LatLngApp Notification',
-      channelDescription: 'LatLngApp Notification Channel',
-    )
-  ], channelGroups: [
-    NotificationChannelGroup(
-        channelGroupKey: 'lat_lng_channel_group',
-        channelGroupName: 'lat_lng_group')
-  ]);
-  bool isAllowedToSendNotification =
-      await AwesomeNotifications().isNotificationAllowed();
-  if (!isAllowedToSendNotification) {
-    AwesomeNotifications().requestPermissionToSendNotifications();
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  LocationPermission permission = await Geolocator.checkPermission();
+  if (permission == LocationPermission.denied) {
+    permission = await Geolocator.requestPermission();
+  }
+  if (!await FlutterBackgroundService().isRunning()) {
+    await BackgroundService.initializeService();
   }
   runApp(const MyApp());
 }
@@ -37,46 +29,31 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  late Widget initialWidget;
-  int messageCount = 0;
+  Widget displayPage = const LandingScreen();
+  int countInternetMessage = 0;
   @override
   void initState() {
     super.initState();
-    AwesomeNotifications().setListeners(
-        onNotificationCreatedMethod:
-            AppNotification.onNotificationCreatedMethod,
-        onDismissActionReceivedMethod:
-            AppNotification.onNotificationDismissedMethod,
-        onNotificationDisplayedMethod:
-            AppNotification.onNotificationDisplayedMethod,
-        onActionReceivedMethod: AppNotification.onActionReceivedMethod);
-    initialWidget = const LandingScreen();
-    Timer(const Duration(seconds: 1), () {
-      _checkInternetConnection();
-    });
+    _checkInternetService();
   }
 
-  Future<void> _checkInternetConnection() async {
+  void _checkInternetService() async {
     final connectivityResult = await Connectivity().checkConnectivity();
     if (connectivityResult == ConnectivityResult.mobile ||
         connectivityResult == ConnectivityResult.wifi) {
-      setState(() {
-        initialWidget = HomePage(result: connectivityResult);
+      countInternetMessage = 0;
+      Future.delayed(const Duration(seconds: 1), () {
+        setState(() {
+          displayPage = const HomeScreen();
+        });
       });
     } else {
-      if (messageCount == 0) {
-        AwesomeNotifications().createNotification(
-            content: NotificationContent(
-          id: 1,
-          channelKey: 'LatLngApp Channel',
-          title: 'Check Internet Status',
-          body: 'Hey! You gone offline. Please check your internet connection.',
-        ));
+      if (countInternetMessage == 0) {
         Fluttertoast.showToast(msg: 'No Internet Connection');
-        messageCount++;
+        countInternetMessage++;
       }
-      Timer(const Duration(seconds: 2), () {
-        _checkInternetConnection();
+      Future.delayed(const Duration(seconds: 2), () {
+        _checkInternetService();
       });
     }
   }
@@ -85,9 +62,8 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Latitude and Longitude App',
       theme: ThemeData(useMaterial3: true),
-      home: initialWidget,
+      home: displayPage,
     );
   }
 }
